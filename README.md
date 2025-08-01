@@ -78,6 +78,7 @@ Products in the app have the following properties:
 ## 👥 User Roles
 
 ### Customer Features
+
 - Browse and search products
 - Manage shopping cart
 - Place orders and track delivery
@@ -85,6 +86,7 @@ Products in the app have the following properties:
 - Update profile and preferences
 
 ### Admin Features
+
 - Dashboard with sales analytics and metrics
 - Manage users (view, edit, activate/deactivate)
 - Add, edit, and remove products
@@ -122,8 +124,8 @@ The app follows a service-oriented architecture with clear separation of concern
 
 ### Sample Accounts
 
-- **Customer**: test@mail.com / password123
-- **Admin**: admin@admin.com / admin123
+- **Customer**: <test@mail.com> / password123
+- **Admin**: <admin@admin.com> / admin123
 
 ### Sample Products
 
@@ -145,6 +147,7 @@ Even if you're not a programmer, you can contribute to the project in several wa
 - **Documentation**: Help improve these instructions or create user guides
 
 To suggest changes:
+
 1. Note the specific screen or feature you're referring to
 2. Describe clearly what you think should be changed
 3. If possible, include a screenshot highlighting the area
@@ -153,7 +156,10 @@ To suggest changes:
 ## 📞 Contact Information
 
 - **Development Team**:
-Suleiman Ahmed Ibn Ahmed (http://github.com/gustav2k19)
+
+  1. Suleiman Ahmed Ibn Ahmed <http://github.com/gustav2k19>
+  2. Abdul Rahim Salawudeen <https://github.com/Spacely-12>
+
 ---
 
 © 2025 Eggstra Farms Ltd. All rights reserved.
