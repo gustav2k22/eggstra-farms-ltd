@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "290254260284",
+    "firebase_url": "https://eggstra-farms-ltd-default-rtdb.firebaseio.com",
+    "project_id": "eggstra-farms-ltd",
+    "storage_bucket": "eggstra-farms-ltd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:290254260284:android:3b33cec024fe99cc20db39",
+        "android_client_info": {
+          "package_name": "com.eggstrafarmsghana.eggstra_farms_ltd"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwK8hax-bRJIhMkCHoa3D1Gf3Ax4XJY_0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
