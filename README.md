@@ -154,6 +154,8 @@ To suggest changes:
 
 - **Development Team**:
 Suleiman Ahmed Ibn Ahmed (http://github.com/gustav2k19)
+Amos kwame asante 
+
 ---
 
 © 2025 Eggstra Farms Ltd. All rights reserved.
