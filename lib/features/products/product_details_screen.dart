@@ -41,7 +41,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
   List<ReviewModel> _reviews = [];
   StreamSubscription<List<ReviewModel>>? _reviewsSubscription;
   double _averageRating = 0.0;
-  int _reviewCount = 0;
+  // Removed unused _reviewCount field - using reviews.length instead
 
   
   final PageController _imagePageController = PageController();
@@ -136,12 +136,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
   void _loadRatingData() async {
     try {
       final rating = await ReviewService().getProductAverageRating(widget.product.id);
-      final count = await ReviewService().getProductReviewCount(widget.product.id);
+      // Using _reviews.length instead of separate count variable
       
       if (mounted) {
         setState(() {
           _averageRating = rating;
-          _reviewCount = count;
+          // Using _reviews.length instead of separate count
         });
       }
     } catch (e) {

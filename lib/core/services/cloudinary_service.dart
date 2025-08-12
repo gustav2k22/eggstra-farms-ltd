@@ -2,17 +2,28 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'package:crypto/crypto.dart';
 
 class CloudinaryService {
   static final CloudinaryService _instance = CloudinaryService._internal();
   factory CloudinaryService() => _instance;
   CloudinaryService._internal();
 
-  // Cloudinary configuration
-  static const String _cloudName = 'drczdu4oh';
-  static const String _apiKey = '757639348227263';
-  static const String _apiSecret = '3-GiSSxN8GnpT39L_rlDqOVi3qY';
-  static const String _uploadUrl = 'https://api.cloudinary.com/v1_1/$_cloudName/image/upload';
+  // Cloudinary configuration (provided via --dart-define at build/run time)
+  // Example:
+  // flutter run \
+  //   --dart-define=CLOUDINARY_CLOUD_NAME=your_cloud \
+  //   --dart-define=CLOUDINARY_API_KEY=your_key \
+  //   --dart-define=CLOUDINARY_API_SECRET=your_secret \
+  //   --dart-define=CLOUDINARY_UPLOAD_PRESET=eggstra \
+  //   --dart-define=CLOUDINARY_UNSIGNED=true
+  static const String _cloudName = String.fromEnvironment('CLOUDINARY_CLOUD_NAME', defaultValue: '');
+  static const String _apiKey = String.fromEnvironment('CLOUDINARY_API_KEY', defaultValue: '');
+  static const String _apiSecret = String.fromEnvironment('CLOUDINARY_API_SECRET', defaultValue: '');
+  static const String _uploadPreset = String.fromEnvironment('CLOUDINARY_UPLOAD_PRESET', defaultValue: 'eggstra');
+  static const String _unsignedFlag = String.fromEnvironment('CLOUDINARY_UNSIGNED', defaultValue: 'true');
+  static bool get _isUnsigned => _unsignedFlag.toLowerCase() == 'true' || _apiSecret.isEmpty;
+  static String get _uploadUrl => 'https://api.cloudinary.com/v1_1/$_cloudName/image/upload';
 
   /// Upload image to Cloudinary
   Future<String?> uploadImage({
@@ -24,24 +35,33 @@ class CloudinaryService {
       // Create multipart request
       final request = http.MultipartRequest('POST', Uri.parse(_uploadUrl));
       
-      // Add authentication
+      // Configure fields (signed vs unsigned upload)
       final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final signature = _generateSignature(
-        timestamp: timestamp,
-        folder: folder,
-        publicId: publicId,
-      );
-      
-      // Add form fields
-      request.fields.addAll({
-        'api_key': _apiKey,
-        'timestamp': timestamp.toString(),
-        'signature': signature,
-        'folder': folder,
-        if (publicId != null) 'public_id': publicId,
-        'resource_type': 'image',
-        'upload_preset': 'eggstra', // Use the preset from your screenshot
-      });
+      if (_isUnsigned) {
+        // Unsigned upload: no signature required. Uses upload preset.
+        request.fields.addAll({
+          'folder': folder,
+          if (publicId != null) 'public_id': publicId,
+          'resource_type': 'image',
+          'upload_preset': _uploadPreset,
+        });
+      } else {
+        // Signed upload: requires api_key, timestamp, signature.
+        final signature = _generateSignature(
+          timestamp: timestamp,
+          folder: folder,
+          publicId: publicId,
+        );
+        request.fields.addAll({
+          'api_key': _apiKey,
+          'timestamp': timestamp.toString(),
+          'signature': signature,
+          'folder': folder,
+          if (publicId != null) 'public_id': publicId,
+          'resource_type': 'image',
+          'upload_preset': _uploadPreset,
+        });
+      }
       
       // Add image file
       request.files.add(
@@ -166,6 +186,7 @@ class CloudinaryService {
     final params = <String, String>{
       'timestamp': timestamp.toString(),
       'folder': folder,
+      'upload_preset': 'eggstra',
       if (publicId != null) 'public_id': publicId,
     };
     
@@ -178,7 +199,7 @@ class CloudinaryService {
     // Create signature string
     final signatureString = '$paramString$_apiSecret';
     
-    // Generate SHA1 hash (simplified - in production use crypto package)
+    // Generate SHA1 hash for Cloudinary signature
     return _sha1Hash(signatureString);
   }
 
@@ -191,11 +212,11 @@ class CloudinaryService {
     return _sha1Hash(signatureString);
   }
 
-  /// Simple SHA1 hash (use crypto package in production)
+  /// Generate SHA1 hash for Cloudinary signature
   String _sha1Hash(String input) {
-    // This is a simplified implementation
-    // In production, use the crypto package for proper SHA1 hashing
-    return input.hashCode.abs().toString();
+    final bytes = utf8.encode(input);
+    final digest = sha1.convert(bytes);
+    return digest.toString();
   }
 
   /// Check if image URL is from Cloudinary

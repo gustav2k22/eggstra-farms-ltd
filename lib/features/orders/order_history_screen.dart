@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../core/constants/app_colors.dart';
-import '../../core/services/firebase_service.dart';
+
+import '../../core/services/order_service.dart';
 import '../../shared/models/order_model.dart';
 import '../../shared/providers/auth_provider.dart';
 import '../../shared/widgets/loading_overlay.dart';
@@ -29,7 +30,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
   final List<String> _filterOptions = ['All', 'Pending', 'Processing', 'Delivered', 'Cancelled'];
   
   List<OrderModel> _orders = [];
-  StreamSubscription<QuerySnapshot>? _ordersSubscription;
+  StreamSubscription<List<OrderModel>>? _ordersSubscription;
 
   @override
   void initState() {
@@ -98,18 +99,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     });
 
     try {
-      // Listen to real-time updates from Firebase
-      _ordersSubscription = FirebaseService.instance.ordersCollection
-          .where('userId', isEqualTo: currentUser.id)
-          .orderBy('orderDate', descending: true)
-          .snapshots()
-          .listen((snapshot) {
-        final orders = snapshot.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          data['id'] = doc.id;
-          return OrderModel.fromMap(data);
-        }).toList();
-
+      // Use OrderService with client-side filtering to avoid composite index requirement
+      _ordersSubscription = OrderService().getUserOrders(currentUser.id)
+          .listen((orders) {
         setState(() {
           _orders = orders;
           _isLoading = false;
