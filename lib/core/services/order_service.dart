@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../shared/models/order_model.dart';
 import '../../shared/models/cart_model.dart';
 import 'firebase_service.dart';
+import 'activity_service.dart';
 
 class OrderService {
   static final OrderService _instance = OrderService._internal();
@@ -51,6 +52,18 @@ class OrderService {
           .collection('orders')
           .doc(orderId)
           .set(order.toMap());
+
+      // Log activity for new order
+      await ActivityService().logOrderActivity(
+        orderId,
+        userId,
+        OrderActivityType.created,
+        metadata: {
+          'total': order.total,
+          'itemCount': order.items.length,
+          'paymentMethod': paymentMethod,
+        },
+      );
 
       // Log analytics
       await _firebaseService.logEvent(
@@ -133,6 +146,17 @@ class OrderService {
   // Update order status (Admin)
   Future<bool> updateOrderStatus(String orderId, String newStatus) async {
     try {
+      // Get order details first for activity logging
+      final orderDoc = await _firebaseService.firestore
+          .collection('orders')
+          .doc(orderId)
+          .get();
+      
+      if (!orderDoc.exists) return false;
+      
+      final orderData = orderDoc.data()!;
+      final userId = orderData['userId'] as String;
+      
       await _firebaseService.firestore
           .collection('orders')
           .doc(orderId)
@@ -140,6 +164,37 @@ class OrderService {
         'status': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Log activity based on status change
+      OrderActivityType activityType;
+      switch (newStatus.toLowerCase()) {
+        case 'confirmed':
+        case 'processing':
+          activityType = OrderActivityType.confirmed;
+          break;
+        case 'shipped':
+        case 'out_for_delivery':
+          activityType = OrderActivityType.shipped;
+          break;
+        case 'delivered':
+          activityType = OrderActivityType.delivered;
+          break;
+        case 'cancelled':
+          activityType = OrderActivityType.cancelled;
+          break;
+        default:
+          activityType = OrderActivityType.confirmed;
+      }
+      
+      await ActivityService().logOrderActivity(
+        orderId,
+        userId,
+        activityType,
+        metadata: {
+          'previousStatus': orderData['status'],
+          'newStatus': newStatus,
+        },
+      );
 
       // Log analytics
       await _firebaseService.logEvent(
@@ -342,69 +397,10 @@ class OrderService {
     final year = now.year.toString().substring(2);
     final month = now.month.toString().padLeft(2, '0');
     final day = now.day.toString().padLeft(2, '0');
-    final time = now.millisecondsSinceEpoch.toString().substring(8);
+    final hour = now.hour.toString().padLeft(2, '0');
+    final minute = now.minute.toString().padLeft(2, '0');
+    final second = now.second.toString().padLeft(2, '0');
     
-    return 'EF$year$month$day$time';
-  }
-
-  // Initialize sample orders (for development)
-  Future<void> initializeSampleOrders() async {
-    try {
-      final sampleOrders = [
-        OrderModel(
-          id: 'order_001',
-          userId: 'user_001',
-          orderNumber: 'EF24010001',
-          items: [],
-          subtotal: 45.99,
-          tax: 4.60,
-          deliveryFee: 5.00,
-          total: 55.59,
-          status: 'delivered',
-          paymentMethod: 'Mobile Money',
-          paymentStatus: 'paid',
-          deliveryAddress: DeliveryAddressModel.fromMap({
-            'fullName': 'John Doe',
-            'phoneNumber': '+233123456789',
-            'address': '123 Main Street',
-            'city': 'Accra',
-            'region': 'Greater Accra',
-          }),
-          orderDate: DateTime.now().subtract(const Duration(days: 5)),
-        ),
-        OrderModel(
-          id: 'order_002',
-          userId: 'user_002',
-          orderNumber: 'EF24010002',
-          items: [],
-          subtotal: 28.50,
-          tax: 2.85,
-          deliveryFee: 5.00,
-          total: 36.35,
-          status: 'pending',
-          paymentMethod: 'Card',
-          paymentStatus: 'pending',
-          deliveryAddress: DeliveryAddressModel.fromMap({
-            'fullName': 'Jane Smith',
-            'phoneNumber': '+233987654321',
-            'address': '456 Oak Avenue',
-            'city': 'Kumasi',
-            'region': 'Ashanti',
-          }),
-          orderDate: DateTime.now().subtract(const Duration(hours: 2)),
-        ),
-      ];
-
-      for (final order in sampleOrders) {
-        await _firebaseService.firestore
-            .collection('orders')
-            .doc(order.id)
-            .set(order.toMap());
-      }
-      
-      debugPrint('Sample orders initialized successfully');
-    } catch (e) {
-      debugPrint('Error initializing sample orders: $e');
-    }
+    return 'EF$year$month$day$hour$minute$second';
   }
 }

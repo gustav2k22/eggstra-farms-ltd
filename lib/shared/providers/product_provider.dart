@@ -272,7 +272,7 @@ class ProductProvider with ChangeNotifier {
   // Initialize sample data (Development only)
   Future<void> initializeSampleProducts() async {
     try {
-      await _productService.initializeSampleProducts();
+      // Sample products initialization removed - using real Firebase data only
     } catch (e) {
       debugPrint('Error initializing sample products: $e');
     }

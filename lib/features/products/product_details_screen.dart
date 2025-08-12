@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/firebase_service.dart';
+import '../../core/services/review_service.dart';
 import '../../shared/models/product_model.dart';
+import '../../shared/models/review_model.dart';
 import '../../shared/providers/cart_provider.dart';
 import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/loading_overlay.dart';
@@ -31,6 +36,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
   int _quantity = 1;
   int _selectedImageIndex = 0;
   bool _isFavorite = false;
+  List<ProductModel> _relatedProducts = [];
+  StreamSubscription<QuerySnapshot>? _relatedProductsSubscription;
+  List<ReviewModel> _reviews = [];
+  StreamSubscription<List<ReviewModel>>? _reviewsSubscription;
+  double _averageRating = 0.0;
+  int _reviewCount = 0;
+
   
   final PageController _imagePageController = PageController();
 
@@ -72,7 +84,69 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
     ));
     
     _animationController.forward();
+    _loadRelatedProducts();
+    _loadReviews();
     _imageAnimationController.forward();
+  }
+
+  void _loadRelatedProducts() {
+    // Load products from the same category, excluding current product
+    _relatedProductsSubscription = FirebaseService.instance.productsCollection
+        .where('category', isEqualTo: widget.product.category)
+        .where('isActive', isEqualTo: true)
+        .limit(10)
+        .snapshots()
+        .listen((snapshot) {
+      final products = snapshot.docs
+          .map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            data['id'] = doc.id;
+            return ProductModel.fromMap(data);
+          })
+          .where((product) => product.id != widget.product.id)
+          .toList();
+      
+      if (mounted) {
+        setState(() {
+          _relatedProducts = products;
+        });
+      }
+    }, onError: (error) {
+      debugPrint('Error loading related products: $error');
+    });
+  }
+  
+  void _loadReviews() {
+    // Load reviews for this product
+    _reviewsSubscription = ReviewService().getProductReviews(widget.product.id, limit: 5)
+        .listen((reviews) {
+      if (mounted) {
+        setState(() {
+          _reviews = reviews;
+        });
+      }
+    }, onError: (error) {
+      debugPrint('Error loading reviews: $error');
+    });
+    
+    // Load average rating and count
+    _loadRatingData();
+  }
+  
+  void _loadRatingData() async {
+    try {
+      final rating = await ReviewService().getProductAverageRating(widget.product.id);
+      final count = await ReviewService().getProductReviewCount(widget.product.id);
+      
+      if (mounted) {
+        setState(() {
+          _averageRating = rating;
+          _reviewCount = count;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading rating data: $e');
+    }
   }
 
   @override
@@ -80,6 +154,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
     _animationController.dispose();
     _imageAnimationController.dispose();
     _imagePageController.dispose();
+    _relatedProductsSubscription?.cancel();
+    _reviewsSubscription?.cancel();
     super.dispose();
   }
 
@@ -651,9 +727,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Reviews',
-                    style: TextStyle(
+                  Text(
+                    'Reviews (${_averageRating > 0 ? _averageRating.toStringAsFixed(1) : 'No ratings'})',
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
@@ -669,20 +745,48 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
               ),
               const SizedBox(height: 12),
               
-              // Sample reviews
-              _buildReviewCard(
-                name: 'Sarah Johnson',
-                rating: 5,
-                comment: 'Amazing quality! Fresh and delicious eggs. Will definitely order again.',
-                date: '2 days ago',
-              ),
-              const SizedBox(height: 12),
-              _buildReviewCard(
-                name: 'Michael Chen',
-                rating: 4,
-                comment: 'Good quality eggs, delivered on time. Packaging was excellent.',
-                date: '1 week ago',
-              ),
+              // Firebase-based reviews
+              if (_reviews.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.rate_review_outlined,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No reviews yet',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Be the first to review this product!',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ..._reviews.map((review) => Column(
+                  children: [
+                    _buildReviewCard(
+                      name: review.userName,
+                      rating: review.rating,
+                      comment: review.comment,
+                      date: review.timeAgo,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                )),
               const SizedBox(height: 24),
             ],
           ),
@@ -792,7 +896,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                 height: 200,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  itemCount: 3, // Mock related products
+                  itemCount: _relatedProducts.length,
                   itemBuilder: (context, index) {
                     return Container(
                       width: 150,

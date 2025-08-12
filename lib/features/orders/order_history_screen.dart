@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/firebase_service.dart';
 import '../../shared/models/order_model.dart';
 import '../../shared/providers/auth_provider.dart';
 import '../../shared/widgets/loading_overlay.dart';
@@ -25,76 +28,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
   String _selectedFilter = 'All';
   final List<String> _filterOptions = ['All', 'Pending', 'Processing', 'Delivered', 'Cancelled'];
   
-  // Mock order data - replace with real data from Firestore
-  final List<OrderModel> _mockOrders = [
-    OrderModel(
-      id: 'order_001',
-      userId: 'user_123',
-      orderNumber: 'ORD-001',
-      items: [],
-      subtotal: 45.50,
-      deliveryFee: 5.00,
-      tax: 1.14,
-      total: 51.64,
-      status: 'delivered',
-      paymentStatus: 'completed',
-      paymentMethod: 'Cash on Delivery',
-      deliveryAddress: DeliveryAddressModel(
-        fullName: 'John Doe',
-        phoneNumber: '+233244123456',
-        address: '123 Main Street',
-        city: 'Accra',
-        region: 'Greater Accra',
-      ),
-      orderDate: DateTime.now().subtract(const Duration(days: 2)),
-      actualDeliveryDate: DateTime.now().subtract(const Duration(days: 1)),
-      notes: 'Please ring the doorbell',
-    ),
-    OrderModel(
-      id: 'order_002',
-      userId: 'user_123',
-      orderNumber: 'ORD-002',
-      items: [],
-      subtotal: 32.00,
-      deliveryFee: 5.00,
-      tax: 0.80,
-      total: 37.80,
-      status: 'processing',
-      paymentStatus: 'pending',
-      paymentMethod: 'Mobile Money',
-      deliveryAddress: DeliveryAddressModel(
-        fullName: 'Jane Smith',
-        phoneNumber: '+233244789012',
-        address: '456 Oak Avenue',
-        city: 'Kumasi',
-        region: 'Ashanti',
-      ),
-      orderDate: DateTime.now().subtract(const Duration(hours: 3)),
-      estimatedDeliveryDate: DateTime.now().add(const Duration(hours: 2)),
-    ),
-    OrderModel(
-      id: 'order_003',
-      userId: 'user_123',
-      orderNumber: 'ORD-003',
-      items: [],
-      subtotal: 28.75,
-      deliveryFee: 5.00,
-      tax: 0.72,
-      total: 34.47,
-      status: 'pending',
-      paymentStatus: 'pending',
-      paymentMethod: 'Cash on Delivery',
-      deliveryAddress: DeliveryAddressModel(
-        fullName: 'Michael Johnson',
-        phoneNumber: '+233244345678',
-        address: '789 Pine Road',
-        city: 'Tamale',
-        region: 'Northern',
-      ),
-      orderDate: DateTime.now().subtract(const Duration(minutes: 30)),
-      estimatedDeliveryDate: DateTime.now().add(const Duration(hours: 4)),
-    ),
-  ];
+  List<OrderModel> _orders = [];
+  StreamSubscription<QuerySnapshot>? _ordersSubscription;
 
   @override
   void initState() {
@@ -121,20 +56,22 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     ));
     
     _animationController.forward();
+    _loadOrders();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _ordersSubscription?.cancel();
     super.dispose();
   }
 
   List<OrderModel> get _filteredOrders {
     if (_selectedFilter == 'All') {
-      return _mockOrders;
+      return _orders;
     }
     
-    return _mockOrders.where((order) {
+    return _orders.where((order) {
       switch (_selectedFilter) {
         case 'Pending':
           return order.status == 'pending';
@@ -148,6 +85,49 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
           return true;
       }
     }).toList();
+  }
+
+  void _loadOrders() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUser = authProvider.user;
+    
+    if (currentUser == null) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Listen to real-time updates from Firebase
+      _ordersSubscription = FirebaseService.instance.ordersCollection
+          .where('userId', isEqualTo: currentUser.id)
+          .orderBy('orderDate', descending: true)
+          .snapshots()
+          .listen((snapshot) {
+        final orders = snapshot.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
+          return OrderModel.fromMap(data);
+        }).toList();
+
+        setState(() {
+          _orders = orders;
+          _isLoading = false;
+        });
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading orders: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override

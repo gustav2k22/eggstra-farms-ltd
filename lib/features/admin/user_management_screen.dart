@@ -1,14 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/firebase_service.dart';
 import '../../shared/models/user_model.dart';
-import '../../shared/services/admin_key_service.dart';
 import '../../shared/widgets/loading_overlay.dart';
-import '../../shared/widgets/search_bar_widget.dart';
+import '../../shared/services/admin_key_service.dart';
 import '../../shared/widgets/custom_button.dart';
+import '../../shared/widgets/custom_text_field.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -23,6 +25,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   
+  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedFilter = 'All';
   bool _isLoading = false;
@@ -33,42 +36,10 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   
   final List<String> _filterOptions = ['All', 'Customers', 'Admins', 'Active', 'Inactive'];
   
-  // Mock user data - replace with real data from Firestore
-  final List<UserModel> _mockUsers = [
-    UserModel(
-      id: '1',
-      email: 'john.doe@example.com',
-      firstName: 'John',
-      lastName: 'Doe',
-      phoneNumber: '+233244123456',
-      role: AppConstants.customerRole,
-      isActive: true,
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-      updatedAt: DateTime.now(),
-    ),
-    UserModel(
-      id: '2',
-      email: 'jane.smith@example.com',
-      firstName: 'Jane',
-      lastName: 'Smith',
-      phoneNumber: '+233244789012',
-      role: AppConstants.customerRole,
-      isActive: true,
-      createdAt: DateTime.now().subtract(const Duration(days: 15)),
-      updatedAt: DateTime.now(),
-    ),
-    UserModel(
-      id: '3',
-      email: 'admin@eggstrafarmsghana.com',
-      firstName: 'Admin',
-      lastName: 'User',
-      phoneNumber: '+233244345678',
-      role: AppConstants.adminRole,
-      isActive: true,
-      createdAt: DateTime.now().subtract(const Duration(days: 60)),
-      updatedAt: DateTime.now(),
-    ),
-  ];
+  List<UserModel> _users = [];
+  StreamSubscription<QuerySnapshot>? _usersSubscription;
+  
+
 
   @override
   void initState() {
@@ -88,7 +59,46 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     ));
     
     _animationController.forward();
+    _loadUsers();
     _loadAdminKeys();
+  }
+  
+  // Load users from Firebase
+  void _loadUsers() {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+    
+    _usersSubscription = FirebaseService.instance.usersCollection
+        .snapshots()
+        .listen((snapshot) {
+      final users = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return UserModel.fromMap(data);
+      }).toList();
+      
+      if (mounted) {
+        setState(() {
+          _users = users;
+          _isLoading = false;
+        });
+      }
+    }, onError: (error) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading users: ${error.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    });
   }
   
   // Load admin keys from Firestore
@@ -126,11 +136,13 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   void dispose() {
     _tabController.dispose();
     _animationController.dispose();
+    _searchController.dispose();
+    _usersSubscription?.cancel();
     super.dispose();
   }
 
   List<UserModel> get _filteredUsers {
-    return _mockUsers.where((user) {
+    return _users.where((user) {
       // Search filter
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
@@ -172,14 +184,16 @@ class _UserManagementScreenState extends State<UserManagementScreen>
               child: Column(
                 children: [
                   // Search Bar
-                  SearchBarWidget(
+                  CustomTextField(
+                    controller: _searchController,
+                    label: 'Search Users',
                     hint: 'Search users by name, email, or phone...',
+                    prefixIcon: Icons.search,
                     onChanged: (query) {
                       setState(() {
                         _searchQuery = query;
                       });
                     },
-                    showFilter: false,
                   ),
                   
                   const SizedBox(height: 16),
@@ -1038,7 +1052,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                               margin: const EdgeInsets.only(bottom: 8),
                               child: ListTile(
                                 title: Text(
-                                  key['key'],
+                                  'Admin Key: ${key['key']}',
                                   style: TextStyle(
                                     fontFamily: 'monospace',
                                     decoration: isUsed ? TextDecoration.lineThrough : null,
