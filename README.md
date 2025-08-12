@@ -154,6 +154,8 @@ To suggest changes:
 
 - **Development Team**:
 Suleiman Ahmed Ibn Ahmed (http://github.com/gustav2k19)
----
+Amos kwame asante(https://github.com/AMOSKWAMEASANTE/AMOSKWAMEASANTE.git)
+Asante-Amoah Emmanuel Kofi (https://github.com/Kofi-Jr7/Kofi-Jr7.git)
+Emmanuel Nana Agyemang (https://github.com/onlycylicon)
 
 © 2025 Eggstra Farms Ltd. All rights reserved.
