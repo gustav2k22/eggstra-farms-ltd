@@ -17,7 +17,7 @@ class ImagePickerWidget extends StatefulWidget {
   final String title;
 
   const ImagePickerWidget({
-    Key? key,
+    super.key,
     required this.imageType,
     required this.userId,
     required this.onImageSelected,
@@ -27,7 +27,7 @@ class ImagePickerWidget extends StatefulWidget {
     this.size = 120.0,
     this.icon = Icons.add_photo_alternate,
     this.title = 'Add Image',
-  }) : super(key: key);
+  });
 
   @override
   State<ImagePickerWidget> createState() => _ImagePickerWidgetState();

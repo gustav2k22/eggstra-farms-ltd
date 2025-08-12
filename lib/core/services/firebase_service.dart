@@ -189,7 +189,12 @@ class FirebaseService {
     Map<String, Object?>? parameters,
   }) async {
     try {
-      await analytics.logEvent(name: name, parameters: parameters);
+      await analytics.logEvent(
+        name: name,
+        parameters: parameters == null
+            ? null
+            : Map<String, Object>.from(parameters),
+      );
     } catch (e) {
       await crashlytics.recordError(e, null);
     }

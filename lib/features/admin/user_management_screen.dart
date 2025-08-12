@@ -1046,8 +1046,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                   ),
                                 ),
                                 subtitle: Text(
-                                  'Created: ${DateFormat('MMM d, y h:mm a').format(createdAt)}\n' +
-                                  (isUsed ? 'Used' : 'Available'),
+                                  'Created: ${DateFormat('MMM d, y h:mm a').format(createdAt)}\n${isUsed ? 'Used' : 'Available'}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: isUsed ? AppColors.textSecondary : AppColors.success,
