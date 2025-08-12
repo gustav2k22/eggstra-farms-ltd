@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/order_service.dart';
 import '../../shared/models/order_model.dart';
 import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
@@ -23,8 +25,9 @@ class _OrderManagementScreenState extends State<OrderManagementScreen>
   String _selectedTimeFilter = 'All Time';
   bool _isLoading = false;
   
-  // Mock data - replace with Firebase integration
+  // Firebase integration
   List<OrderModel> _orders = [];
+  StreamSubscription<List<OrderModel>>? _ordersSubscription;
   
   final List<String> _statusOptions = [
     'All', 'Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'
@@ -53,6 +56,7 @@ class _OrderManagementScreenState extends State<OrderManagementScreen>
   void dispose() {
     _animationController.dispose();
     _searchController.dispose();
+    _ordersSubscription?.cancel();
     super.dispose();
   }
 
@@ -61,83 +65,33 @@ class _OrderManagementScreenState extends State<OrderManagementScreen>
       _isLoading = true;
     });
     
-    // Mock orders data
-    _orders = [
-      OrderModel(
-        id: 'ORD001',
-        userId: 'user1',
-        orderNumber: 'ORD-2024-001',
-        items: [
-          OrderItemModel(
-            productId: '1',
-            productName: 'Free Range Eggs (Dozen)',
-            productImageUrl: 'https://example.com/eggs.jpg',
-            quantity: 2,
-            unitPrice: 15.99,
-            totalPrice: 31.98,
-            unit: 'dozen',
-          ),
-          OrderItemModel(
-            productId: '2',
-            productName: 'Organic Chicken Breast',
-            productImageUrl: 'https://example.com/chicken.jpg',
-            quantity: 1,
-            unitPrice: 28.50,
-            totalPrice: 28.50,
-            unit: 'kg',
-          ),
-        ],
-        subtotal: 60.48,
-        total: 60.48,
-        status: 'pending',
-        paymentStatus: 'pending',
-        deliveryAddress: DeliveryAddressModel(
-          fullName: 'John Doe',
-          phoneNumber: '+233123456789',
-          address: '123 Main Street',
-          city: 'Accra',
-          region: 'Greater Accra',
-        ),
-        paymentMethod: 'Mobile Money',
-        orderDate: DateTime.now().subtract(const Duration(hours: 2)),
-        estimatedDeliveryDate: DateTime.now().add(const Duration(days: 1)),
-        notes: 'Please deliver in the morning',
-      ),
-      OrderModel(
-        id: 'ORD002',
-        userId: 'user2',
-        orderNumber: 'ORD-2024-002',
-        items: [
-          OrderItemModel(
-            productId: '3',
-            productName: 'Farm Fresh Milk',
-            productImageUrl: 'https://example.com/milk.jpg',
-            quantity: 3,
-            unitPrice: 8.99,
-            totalPrice: 26.97,
-            unit: 'liter',
-          ),
-        ],
-        subtotal: 26.97,
-        total: 26.97,
-        status: 'confirmed',
-        paymentStatus: 'completed',
-        deliveryAddress: DeliveryAddressModel(
-          fullName: 'Jane Smith',
-          phoneNumber: '+233987654321',
-          address: '456 Oak Avenue',
-          city: 'Kumasi',
-          region: 'Ashanti',
-        ),
-        paymentMethod: 'Card Payment',
-        orderDate: DateTime.now().subtract(const Duration(days: 1)),
-        estimatedDeliveryDate: DateTime.now().add(const Duration(hours: 12)),
-      ),
-    ];
-    
-    setState(() {
-      _isLoading = false;
-    });
+    // Load orders from Firebase using OrderService
+    final ordersStream = OrderService().getAllOrders();
+    _ordersSubscription?.cancel();
+    _ordersSubscription = ordersStream.listen(
+      (orders) {
+        if (mounted) {
+          setState(() {
+            _orders = orders;
+            _isLoading = false;
+          });
+        }
+      },
+      onError: (error) {
+        debugPrint('Error loading orders: $error');
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error loading orders: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+    );
   }
 
   List<OrderModel> get _filteredOrders {

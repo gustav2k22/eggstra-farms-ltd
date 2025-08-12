@@ -1,6 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/firebase_service.dart';
+import '../../core/services/activity_service.dart';
+import '../../core/models/activity_model.dart';
 import '../../shared/providers/auth_provider.dart';
 import '../../shared/widgets/loading_overlay.dart';
 
@@ -17,17 +22,20 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  // Mock data - replace with real data from services
   final Map<String, dynamic> _dashboardData = {
-    'totalUsers': 1247,
-    'totalProducts': 89,
-    'totalOrders': 3456,
-    'totalRevenue': 125430.50,
-    'todayOrders': 23,
-    'pendingOrders': 12,
-    'lowStockProducts': 5,
-    'newUsers': 18,
+    'totalUsers': 0,
+    'totalProducts': 0,
+    'totalOrders': 0,
+    'totalRevenue': 0.0,
+    'todayOrders': 0,
+    'pendingOrders': 0,
+    'lowStockProducts': 0,
+    'newUsers': 0,
   };
+
+  final List<StreamSubscription> _subscriptions = [];
+  bool _isLoading = false;
+  List<ActivityModel> _recentActivities = [];
 
   @override
   void initState() {
@@ -54,12 +62,137 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
     ));
     
     _animationController.forward();
+    _loadDashboardData();
+    _loadRecentActivities();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    for (var subscription in _subscriptions) {
+      subscription.cancel();
+    }
     super.dispose();
+  }
+  
+  void _loadRecentActivities() {
+    final activitySubscription = ActivityService().getRecentActivitiesStream(limit: 5)
+        .listen((activities) {
+      if (mounted) {
+        setState(() {
+          _recentActivities = activities;
+        });
+      }
+    }, onError: (error) {
+      debugPrint('Error loading recent activities: $error');
+    });
+    
+    _subscriptions.add(activitySubscription);
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Load total users
+      final usersSubscription = FirebaseService.instance.usersCollection
+          .snapshots()
+          .listen((snapshot) {
+        setState(() {
+          _dashboardData['totalUsers'] = snapshot.docs.length;
+        });
+      });
+      _subscriptions.add(usersSubscription);
+
+      // Load total products
+      final productsSubscription = FirebaseService.instance.productsCollection
+          .snapshots()
+          .listen((snapshot) {
+        setState(() {
+          _dashboardData['totalProducts'] = snapshot.docs.length;
+          _dashboardData['lowStockProducts'] = snapshot.docs
+              .where((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final stock = data['stock'] ?? 0;
+                return stock < 10; // Consider low stock if less than 10
+              })
+              .length;
+        });
+      });
+      _subscriptions.add(productsSubscription);
+
+      // Load orders data
+      final ordersSubscription = FirebaseService.instance.ordersCollection
+          .snapshots()
+          .listen((snapshot) {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        
+        double totalRevenue = 0.0;
+        int todayOrders = 0;
+        int pendingOrders = 0;
+
+        for (var doc in snapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final orderDate = (data['orderDate'] as Timestamp?)?.toDate();
+          final status = data['status'] as String?;
+          final total = (data['total'] as num?)?.toDouble() ?? 0.0;
+
+          // Calculate total revenue
+          if (status == 'delivered' || status == 'completed') {
+            totalRevenue += total;
+          }
+
+          // Count today's orders
+          if (orderDate != null && orderDate.isAfter(today)) {
+            todayOrders++;
+          }
+
+          // Count pending orders
+          if (status == 'pending' || status == 'processing') {
+            pendingOrders++;
+          }
+        }
+
+        setState(() {
+          _dashboardData['totalOrders'] = snapshot.docs.length;
+          _dashboardData['totalRevenue'] = totalRevenue;
+          _dashboardData['todayOrders'] = todayOrders;
+          _dashboardData['pendingOrders'] = pendingOrders;
+        });
+      });
+      _subscriptions.add(ordersSubscription);
+
+      // Load new users (users created in the last 7 days)
+      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+      final newUsersSubscription = FirebaseService.instance.usersCollection
+          .where('createdAt', isGreaterThan: Timestamp.fromDate(sevenDaysAgo))
+          .snapshots()
+          .listen((snapshot) {
+        setState(() {
+          _dashboardData['newUsers'] = snapshot.docs.length;
+        });
+      });
+      _subscriptions.add(newUsersSubscription);
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading dashboard data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -69,7 +202,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
         return LoadingOverlay(
           isLoading: authProvider.isLoading,
           child: RefreshIndicator(
-            onRefresh: _refreshDashboard,
+            onRefresh: _loadDashboardData,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
@@ -499,39 +632,41 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
               ),
             ],
           ),
-          child: Column(
-            children: [
-              _buildActivityItem(
-                icon: Icons.shopping_cart,
-                title: 'New order received',
-                subtitle: 'Order #1234 from John Doe',
-                time: '5 minutes ago',
-                color: AppColors.primary,
-              ),
-              _buildActivityItem(
-                icon: Icons.person_add,
-                title: 'New user registered',
-                subtitle: 'Jane Smith joined Eggstra Farms',
-                time: '15 minutes ago',
-                color: AppColors.success,
-              ),
-              _buildActivityItem(
-                icon: Icons.inventory,
-                title: 'Product stock updated',
-                subtitle: 'Fresh Eggs stock replenished',
-                time: '1 hour ago',
-                color: AppColors.info,
-              ),
-              _buildActivityItem(
-                icon: Icons.local_shipping,
-                title: 'Order delivered',
-                subtitle: 'Order #1230 delivered successfully',
-                time: '2 hours ago',
-                color: AppColors.secondary,
-                isLast: true,
-              ),
-            ],
-          ),
+          child: _recentActivities.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.timeline,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No recent activity',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Column(
+                  children: _recentActivities.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final activity = entry.value;
+                    return _buildActivityItem(
+                      icon: _getActivityIcon(activity.type),
+                      title: activity.title,
+                      subtitle: activity.description,
+                      time: activity.timeAgo,
+                      color: _getActivityColor(activity.type),
+                      isLast: index == _recentActivities.length - 1,
+                    );
+                  }).toList(),
+                ),
         ),
       ],
     );
@@ -624,16 +759,31 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
     return number.toString();
   }
 
-  Future<void> _refreshDashboard() async {
-    // TODO: Implement dashboard data refresh
-    await Future.delayed(const Duration(seconds: 2));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Dashboard refreshed!'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+
+
+  IconData _getActivityIcon(ActivityType type) {
+    switch (type) {
+      case ActivityType.order:
+        return Icons.shopping_cart;
+      case ActivityType.user:
+        return Icons.person_add;
+      case ActivityType.product:
+        return Icons.inventory;
+      case ActivityType.system:
+        return Icons.settings;
+    }
+  }
+
+  Color _getActivityColor(ActivityType type) {
+    switch (type) {
+      case ActivityType.order:
+        return AppColors.primary;
+      case ActivityType.user:
+        return AppColors.success;
+      case ActivityType.product:
+        return AppColors.info;
+      case ActivityType.system:
+        return AppColors.secondary;
     }
   }
 }

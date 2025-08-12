@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/image_service.dart';
+import '../../core/services/product_service.dart';
 import '../../shared/models/product_model.dart';
 import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/loading_overlay.dart';
 import '../../shared/widgets/image_picker_widget.dart';
-import '../../core/services/image_service.dart';
 
 class ProductManagementScreen extends StatefulWidget {
   const ProductManagementScreen({super.key});
@@ -26,8 +29,9 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
   String _selectedStatus = 'All';
   bool _isLoading = false;
   
-  // Mock data - replace with Firebase integration
+  // Firebase integration
   List<ProductModel> _products = [];
+  StreamSubscription<List<ProductModel>>? _productsSubscription;
   
   final List<String> _categories = [
     'All', 'Eggs', 'Poultry', 'Dairy', 'Vegetables', 'Fruits'
@@ -55,9 +59,9 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
 
   @override
   void dispose() {
-    _tabController.dispose();
     _animationController.dispose();
     _searchController.dispose();
+    _productsSubscription?.cancel();
     super.dispose();
   }
 
@@ -66,64 +70,33 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
       _isLoading = true;
     });
     
-    // Mock products data
-    _products = [
-      ProductModel(
-        id: '1',
-        name: 'Free Range Eggs (Dozen)',
-        description: 'Fresh free-range eggs from our happy chickens',
-        price: 15.99,
-        category: 'Eggs',
-        imageUrls: ['https://via.placeholder.com/300x200'],
-        unit: 'dozen',
-        stockQuantity: 50,
-        isAvailable: true,
-        isFeatured: true,
-        isOrganic: true,
-        rating: 4.8,
-        reviewCount: 124,
-        createdAt: DateTime.now().subtract(const Duration(days: 30)),
-        updatedAt: DateTime.now(),
-      ),
-      ProductModel(
-        id: '2',
-        name: 'Organic Chicken Breast',
-        description: 'Premium organic chicken breast, hormone-free',
-        price: 28.50,
-        category: 'Poultry',
-        imageUrls: ['https://via.placeholder.com/300x200'],
-        unit: 'kg',
-        stockQuantity: 5,
-        isAvailable: true,
-        isFeatured: false,
-        isOrganic: true,
-        rating: 4.6,
-        reviewCount: 89,
-        createdAt: DateTime.now().subtract(const Duration(days: 15)),
-        updatedAt: DateTime.now(),
-      ),
-      ProductModel(
-        id: '3',
-        name: 'Farm Fresh Milk',
-        description: 'Pure, pasteurized milk from grass-fed cows',
-        price: 8.99,
-        category: 'Dairy',
-        imageUrls: ['https://via.placeholder.com/300x200'],
-        unit: 'liter',
-        stockQuantity: 0,
-        isAvailable: false,
-        isFeatured: false,
-        isOrganic: true,
-        rating: 4.7,
-        reviewCount: 156,
-        createdAt: DateTime.now().subtract(const Duration(days: 7)),
-        updatedAt: DateTime.now(),
-      ),
-    ];
-    
-    setState(() {
-      _isLoading = false;
-    });
+    // Load products from Firebase using ProductService
+    final productsStream = ProductService().getProducts();
+    _productsSubscription?.cancel();
+    _productsSubscription = productsStream.listen(
+      (products) {
+        if (mounted) {
+          setState(() {
+            _products = products;
+            _isLoading = false;
+          });
+        }
+      },
+      onError: (error) {
+        debugPrint('Error loading products: $error');
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error loading products: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+    );
   }
 
   List<ProductModel> get _filteredProducts {

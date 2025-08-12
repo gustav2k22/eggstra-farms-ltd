@@ -275,14 +275,7 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  // Initialize sample data (Development only)
-  Future<void> initializeSampleOrders() async {
-    try {
-      await _orderService.initializeSampleOrders();
-    } catch (e) {
-      debugPrint('Error initializing sample orders: $e');
-    }
-  }
+
 
   // Helper methods
   void _setLoading(bool loading) {

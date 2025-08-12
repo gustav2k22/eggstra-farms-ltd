@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/firebase_service.dart';
 import '../../shared/models/product_model.dart';
 import '../../shared/providers/cart_provider.dart';
 import '../../shared/widgets/custom_app_bar.dart';
@@ -36,8 +39,8 @@ class _ProductListingScreenState extends State<ProductListingScreen>
   String _sortBy = 'Featured';
   bool _isLoading = false;
   
-  // Mock data - replace with Firebase integration
   List<ProductModel> _products = [];
+  StreamSubscription<QuerySnapshot>? _productsSubscription;
   
   final List<String> _categories = [
     'All', 'Eggs', 'Poultry', 'Dairy', 'Vegetables', 'Fruits', 'Grains'
@@ -74,6 +77,7 @@ class _ProductListingScreenState extends State<ProductListingScreen>
   void dispose() {
     _animationController.dispose();
     _searchController.dispose();
+    _productsSubscription?.cancel();
     super.dispose();
   }
 
@@ -82,7 +86,44 @@ class _ProductListingScreenState extends State<ProductListingScreen>
       _isLoading = true;
     });
     
-    // Mock products data - replace with Firebase call
+    try {
+      // Listen to real-time updates from Firebase
+      _productsSubscription = FirebaseService.instance.productsCollection
+          .where('isActive', isEqualTo: true)
+          .snapshots()
+          .listen((snapshot) {
+        final products = snapshot.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
+          return ProductModel.fromMap(data);
+        }).toList();
+
+        setState(() {
+          _products = products;
+          _isLoading = false;
+        });
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading products: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _loadProductsOld() {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    // Old mock products data - keeping for reference
     _products = [
       ProductModel(
         id: '1',
