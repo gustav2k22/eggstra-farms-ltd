@@ -14,14 +14,30 @@ class ProductService {
   Stream<List<ProductModel>> getProducts() {
     return _firebaseService.firestore
         .collection('products')
-        .where('isAvailable', isEqualTo: true)
-        .orderBy('isFeatured', descending: true)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
+      final allProducts = snapshot.docs
           .map((doc) => ProductModel.fromFirestore(doc))
           .toList();
+      
+      // Filter available products client-side to avoid composite index requirement
+      final availableProducts = allProducts
+          .where((product) => product.isAvailable)
+          .toList();
+      
+      // Sort featured products first, then by creation date
+      availableProducts.sort((a, b) {
+        if (a.isFeatured && !b.isFeatured) return -1;
+        if (!a.isFeatured && b.isFeatured) return 1;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+      
+      return availableProducts;
+    }).handleError((error) {
+      debugPrint('Error loading products: $error');
+      // Return empty list on error to prevent app crashes
+      return <ProductModel>[];
     });
   }
 
@@ -33,15 +49,29 @@ class ProductService {
     
     return _firebaseService.firestore
         .collection('products')
-        .where('isAvailable', isEqualTo: true)
-        .where('category', isEqualTo: category)
-        .orderBy('isFeatured', descending: true)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
+      final allProducts = snapshot.docs
           .map((doc) => ProductModel.fromFirestore(doc))
           .toList();
+      
+      // Filter by category and availability client-side to avoid composite index requirement
+      final filteredProducts = allProducts
+          .where((product) => product.isAvailable && product.category == category)
+          .toList();
+      
+      // Sort featured products first, then by creation date
+      filteredProducts.sort((a, b) {
+        if (a.isFeatured && !b.isFeatured) return -1;
+        if (!a.isFeatured && b.isFeatured) return 1;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+      
+      return filteredProducts;
+    }).handleError((error) {
+      debugPrint('Error loading products by category: $error');
+      return <ProductModel>[];
     });
   }
 
@@ -50,15 +80,17 @@ class ProductService {
     try {
       final snapshot = await _firebaseService.firestore
           .collection('products')
-          .where('isAvailable', isEqualTo: true)
+          .orderBy('createdAt', descending: true)
           .get();
       
-      final products = snapshot.docs
+      final allProducts = snapshot.docs
           .map((doc) => ProductModel.fromFirestore(doc))
           .toList();
       
-      // Filter by search query (case-insensitive)
-      return products.where((product) {
+      // Filter by availability and search query client-side
+      return allProducts.where((product) {
+        if (!product.isAvailable) return false;
+        
         final searchLower = query.toLowerCase();
         return product.name.toLowerCase().contains(searchLower) ||
                product.description.toLowerCase().contains(searchLower) ||
@@ -74,15 +106,26 @@ class ProductService {
   Stream<List<ProductModel>> getFeaturedProducts({int limit = 10}) {
     return _firebaseService.firestore
         .collection('products')
-        .where('isAvailable', isEqualTo: true)
-        .where('isFeatured', isEqualTo: true)
-        .orderBy('rating', descending: true)
-        .limit(limit)
+        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
+      final allProducts = snapshot.docs
           .map((doc) => ProductModel.fromFirestore(doc))
           .toList();
+      
+      // Filter featured and available products client-side
+      final featuredProducts = allProducts
+          .where((product) => product.isAvailable && product.isFeatured)
+          .toList();
+      
+      // Sort by rating (descending)
+      featuredProducts.sort((a, b) => b.rating.compareTo(a.rating));
+      
+      // Apply limit
+      return featuredProducts.take(limit).toList();
+    }).handleError((error) {
+      debugPrint('Error loading featured products: $error');
+      return <ProductModel>[];
     });
   }
 

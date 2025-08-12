@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as path;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'firebase_service.dart';
+import 'cloudinary_service.dart';
 
 enum ImageType {
   product,
@@ -21,6 +22,7 @@ class ImageUploadResult {
   final String? localPath;
   final String? error;
   final bool isLocal;
+  final bool isCloudinary;
 
   ImageUploadResult({
     required this.success,
@@ -28,6 +30,7 @@ class ImageUploadResult {
     this.localPath,
     this.error,
     this.isLocal = false,
+    this.isCloudinary = false,
   });
 
   String? get displayUrl => imageUrl ?? localPath;
@@ -39,6 +42,7 @@ class ImageService {
   ImageService._internal();
 
   final FirebaseService _firebaseService = FirebaseService.instance;
+  final CloudinaryService _cloudinaryService = CloudinaryService();
   final ImagePicker _imagePicker = ImagePicker();
 
   // Pick image from gallery or camera
@@ -117,8 +121,31 @@ class ImageService {
         return firebaseResult;
       }
 
-      // Fallback to local storage
-      debugPrint('Firebase upload failed, falling back to local storage');
+      // Fallback to Cloudinary
+      debugPrint('Firebase upload failed, falling back to Cloudinary');
+      final cloudinaryResult = await _uploadToCloudinary(
+        imageFile: imageFile,
+        imageType: imageType,
+        userId: userId,
+        productId: productId,
+        customPath: customPath,
+      );
+
+      if (cloudinaryResult.success) {
+        // Log successful Cloudinary upload
+        await _firebaseService.logEvent(
+          name: 'image_uploaded_cloudinary',
+          parameters: {
+            'image_type': imageType.name,
+            'user_id': userId,
+            'fallback_reason': 'firebase_failed',
+          },
+        );
+        return cloudinaryResult;
+      }
+
+      // Final fallback to local storage
+      debugPrint('Cloudinary upload failed, falling back to local storage');
       final localResult = await _saveToLocalStorage(
         imageFile: imageFile,
         imageType: imageType,
@@ -134,7 +161,7 @@ class ImageService {
           parameters: {
             'image_type': imageType.name,
             'user_id': userId,
-            'fallback_reason': 'firebase_failed',
+            'fallback_reason': 'firebase_and_cloudinary_failed',
           },
         );
       }
@@ -389,6 +416,62 @@ class ImageService {
         success: false,
         error: 'Local storage failed: $e',
       );
+    }
+  }
+
+  // Upload to Cloudinary as fallback
+  Future<ImageUploadResult> _uploadToCloudinary({
+    required XFile imageFile,
+    required ImageType imageType,
+    required String userId,
+    String? productId,
+    String? customPath,
+  }) async {
+    try {
+      final file = File(imageFile.path);
+      final folder = _getCloudinaryFolder(imageType);
+      final publicId = customPath ?? '${userId}_${DateTime.now().millisecondsSinceEpoch}';
+      
+      final cloudinaryUrl = await _cloudinaryService.uploadImage(
+        imageFile: file,
+        folder: folder,
+        publicId: publicId,
+      );
+      
+      if (cloudinaryUrl != null) {
+        // Cache the Cloudinary URL
+        await _cacheImageUrl(imageType, cloudinaryUrl);
+        
+        return ImageUploadResult(
+          success: true,
+          imageUrl: cloudinaryUrl,
+          isCloudinary: true,
+        );
+      } else {
+        return ImageUploadResult(
+          success: false,
+          error: 'Cloudinary upload failed',
+        );
+      }
+    } catch (e) {
+      debugPrint('Cloudinary upload error: $e');
+      return ImageUploadResult(
+        success: false,
+        error: 'Cloudinary upload failed: $e',
+      );
+    }
+  }
+
+  String _getCloudinaryFolder(ImageType imageType) {
+    switch (imageType) {
+      case ImageType.product:
+        return 'eggstra/products';
+      case ImageType.profile:
+        return 'eggstra/profiles';
+      case ImageType.category:
+        return 'eggstra/categories';
+      case ImageType.banner:
+        return 'eggstra/banners';
     }
   }
 
