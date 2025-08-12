@@ -156,10 +156,9 @@ To suggest changes:
 ## 📞 Contact Information
 
 - **Development Team**:
-
-  1. Suleiman Ahmed Ibn Ahmed <http://github.com/gustav2k19>
-  2. Abdul Rahim Salawudeen <https://github.com/Spacely-12>
-
+Suleiman Ahmed Ibn Ahmed (http://github.com/gustav2k19)
+Amos kwame asante(https://github.com/AMOSKWAMEASANTE/AMOSKWAMEASANTE.git)
+Asante-Amoah Emmanuel Kofi (https://github.com/Kofi-Jr7/Kofi-Jr7.git)
 ---
 
 © 2025 Eggstra Farms Ltd. All rights reserved.
