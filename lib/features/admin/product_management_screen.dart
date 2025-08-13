@@ -890,12 +890,15 @@ class _AddProductFormState extends State<AddProductForm> {
         updatedAt: DateTime.now(),
       );
       
-      // TODO: In a real app, we would send this to Firebase/backend
-      // For demo purposes, we'll log the product to show it was created correctly
-      print('Product created: ${product.name} with image: ${product.imageUrls[0]}');
+      // Save product to Firebase using ProductService
+      final productService = ProductService();
+      final success = await productService.addProduct(product);
       
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
+      if (!success) {
+        throw Exception('Failed to save product to Firebase');
+      }
+      
+      debugPrint('Product successfully saved to Firebase: ${product.name} with ID: ${product.id}');
       
       // Check if widget is still mounted before using BuildContext
       if (!mounted) return;

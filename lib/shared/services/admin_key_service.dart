@@ -5,7 +5,7 @@ class AdminKeyService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String _adminKeysCollection = 'admin_keys';
   
-  // Default admin key for testing - this would be more securely managed in a production environment
+  // Default admin key for testing - this should be more securely managed in a production environment
   static const String defaultAdminKey = 'eggstra-admin-2025';
   
   // Generate a new admin key

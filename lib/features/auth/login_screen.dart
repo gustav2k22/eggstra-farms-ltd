@@ -76,12 +76,37 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     if (success && mounted) {
-      // Check user role and navigate accordingly
-      final userRole = authProvider.user?.role;
-      if (userRole == 'admin') {
-        context.go('/admin');
-      } else {
-        context.go('/home');
+      // Wait for auth state to be properly updated before navigation
+      // This ensures we have fresh user data and not cached data from previous sessions
+      int attempts = 0;
+      const maxAttempts = 10;
+      
+      while (attempts < maxAttempts && mounted) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        
+        // Check if user data is loaded and authentication is complete
+        if (authProvider.isAuthenticated && authProvider.user != null) {
+          final userRole = authProvider.user!.role;
+          
+          // Navigate based on the current user's role
+          if (userRole == 'admin') {
+            context.go('/admin');
+          } else {
+            context.go('/home');
+          }
+          return;
+        }
+        attempts++;
+      }
+      
+      // Fallback if we couldn't get user data in time
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login successful but failed to load user data. Please try again.'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
       }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

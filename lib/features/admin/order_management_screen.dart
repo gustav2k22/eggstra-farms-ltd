@@ -270,12 +270,12 @@ class _OrderManagementScreenState extends State<OrderManagementScreen>
         ),
         child: FlexibleSpaceBar(
           title: const Text(
-            'Order Management',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
+            '',
+            // style: TextStyle(
+            //   color: Colors.white,
+            //   fontWeight: FontWeight.bold,
+            //   fontSize: 20,
+            // ),
           ),
           background: Container(
             decoration: const BoxDecoration(
