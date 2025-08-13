@@ -450,19 +450,19 @@ When reporting bugs, include:
 ## 👨‍💻 Contributors
 
 ### **Development Team**
-1. **Suleiman Ahmed Ibn Ahmed** - Lead Developer
+1. **Suleiman Ahmed Ibn Ahmed**
    - GitHub: [@gustav2k19](https://github.com/gustav2k19)
 
-2. **Amos Kwame Asante** - Frontend Developer
+2. **Amos Kwame Asante**
    - GitHub: [@AMOSKWAMEASANTE](https://github.com/AMOSKWAMEASANTE/AMOSKWAMEASANTE.git)
 
-3. **Asante-Amoah Emmanuel Kofi** - Mobile Developer
+3. **Asante-Amoah Emmanuel Kofi**
    - GitHub: [@Kofi-Jr7](https://github.com/Kofi-Jr7/Kofi-Jr7.git)
 
-4. **Emmanuel Nana Agyemang** - Backend Developer
+4. **Emmanuel Nana Agyemang**
    - GitHub: [@onlycylicon](https://github.com/onlycylicon)
 
-5. **Abdul Rahim Salawudeen** - Full Stack Developer
+5. **Abdul Rahim Salawudeen**
    - GitHub: [@Spacely-12](https://github.com/Spacely-12)
 
 ---
