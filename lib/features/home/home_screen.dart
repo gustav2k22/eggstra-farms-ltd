@@ -11,6 +11,7 @@ import '../../shared/widgets/custom_app_bar.dart';
 import '../../shared/widgets/product_card.dart';
 import '../../shared/widgets/category_chip.dart';
 import '../../shared/widgets/search_bar_widget.dart';
+import '../../shared/widgets/enhanced_image.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,6 +40,12 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: _categories.length, vsync: this);
+    // Ensure products are loaded from Firebase when HomeScreen starts
+    // This wires up the product streams in ProductProvider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final productProvider = Provider.of<ProductProvider>(context, listen: false);
+      productProvider.initializeProducts();
+    });
   }
 
   @override
@@ -227,6 +234,11 @@ class _HomeScreenState extends State<HomeScreen>
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
         final user = authProvider.user;
+        final String? initials = (user != null && user.firstName.isNotEmpty)
+            ? (user.lastName.isNotEmpty
+                ? '${user.firstName[0]}${user.lastName[0]}'
+                : user.firstName[0])
+            : null;
         return Container(
           margin: const EdgeInsets.all(16.0),
           padding: const EdgeInsets.all(20.0),
@@ -277,18 +289,11 @@ class _HomeScreenState extends State<HomeScreen>
                       ],
                     ),
                   ),
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 51),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: const Icon(
-                      Icons.agriculture,
-                      color: Colors.white,
-                      size: 30,
-                    ),
+                  ProfileImage(
+                    imageUrl: user?.profileImageUrl,
+                    size: 60,
+                    showEditIcon: false,
+                    initials: initials,
                   ),
                 ],
               ),

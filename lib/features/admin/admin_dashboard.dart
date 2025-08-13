@@ -221,7 +221,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
-                    vertical: 8,
+                    vertical: 6,
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
@@ -241,7 +241,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                           size: 24,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       AnimatedDefaultTextStyle(
                         duration: const Duration(milliseconds: 200),
                         style: TextStyle(

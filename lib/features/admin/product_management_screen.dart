@@ -14,6 +14,7 @@ import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/loading_overlay.dart';
 import '../../shared/widgets/image_picker_widget.dart';
+import 'image_migration_screen.dart';
 
 class ProductManagementScreen extends StatefulWidget {
   const ProductManagementScreen({super.key});
@@ -148,9 +149,22 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
           ],
         ),
         actions: [
+          // Image migration button
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const ImageMigrationScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.cloud_sync, color: AppColors.warning),
+            tooltip: 'Migrate Product Images',
+          ),
           IconButton(
             onPressed: _loadProducts,
             icon: const Icon(Icons.refresh, color: AppColors.primary),
+            tooltip: 'Refresh Products',
           ),
         ],
       ),
@@ -346,27 +360,98 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: product.imageUrls.isNotEmpty && product.imageUrls.first.isNotEmpty
-                                ? CachedNetworkImage(
-                                    imageUrl: product.imageUrls.first,
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) => Container(
-                                      color: AppColors.inputBackground,
-                                      child: const Center(
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                ? (() {
+                                    final firstUrl = product.imageUrls.first;
+                                    final isNetwork = firstUrl.startsWith('http');
+                                    final isLocalPath = firstUrl.startsWith('file://') || (firstUrl.startsWith('/') && !firstUrl.startsWith('http'));
+
+                                    if (isNetwork) {
+                                      return CachedNetworkImage(
+                                        imageUrl: firstUrl,
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(
+                                          color: AppColors.inputBackground,
+                                          child: const Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                    errorWidget: (context, url, error) {
-                                      debugPrint('Error loading image: $url, Error: $error');
+                                        errorWidget: (context, url, error) {
+                                          debugPrint('Error loading image: $url, Error: $error');
+                                          return Container(
+                                            color: AppColors.inputBackground,
+                                            child: const Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.image_not_supported,
+                                                  color: AppColors.textSecondary,
+                                                  size: 24,
+                                                ),
+                                                SizedBox(height: 4),
+                                                Text(
+                                                  'No Image',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: AppColors.textSecondary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      );
+                                    } else if (isLocalPath && !kIsWeb) {
+                                      // Handle local file path
+                                      String path;
+                                      if (firstUrl.startsWith('file:///')) {
+                                        path = firstUrl.substring(8);
+                                      } else if (firstUrl.startsWith('file://')) {
+                                        path = firstUrl.substring(7);
+                                      } else {
+                                        path = firstUrl;
+                                      }
+                                      final file = File(path);
+                                      if (file.existsSync()) {
+                                        return Image.file(
+                                          file,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stack) {
+                                            debugPrint('Error loading local image: $firstUrl, Error: $error');
+                                            return Container(
+                                              color: AppColors.inputBackground,
+                                              child: const Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(
+                                                    Icons.image_not_supported,
+                                                    color: AppColors.textSecondary,
+                                                    size: 24,
+                                                  ),
+                                                  SizedBox(height: 4),
+                                                  Text(
+                                                    'No Image',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: AppColors.textSecondary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      }
+                                      // Fallback if file doesn't exist
                                       return Container(
                                         color: AppColors.inputBackground,
                                         child: const Column(
                                           mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
                                             Icon(
-                                              Icons.image_not_supported,
+                                              Icons.image,
                                               color: AppColors.textSecondary,
                                               size: 24,
                                             ),
@@ -381,8 +466,31 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
                                           ],
                                         ),
                                       );
-                                    },
-                                  )
+                                    } else {
+                                      // Unknown format or running on web without file access
+                                      return Container(
+                                        color: AppColors.inputBackground,
+                                        child: const Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.image,
+                                              color: AppColors.textSecondary,
+                                              size: 24,
+                                            ),
+                                            SizedBox(height: 4),
+                                            Text(
+                                              'No Image',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                  })()
                                 : Container(
                                     color: AppColors.inputBackground,
                                     child: const Column(
