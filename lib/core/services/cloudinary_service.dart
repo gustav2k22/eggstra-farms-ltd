@@ -17,9 +17,9 @@ class CloudinaryService {
   //   --dart-define=CLOUDINARY_API_SECRET=your_secret \
   //   --dart-define=CLOUDINARY_UPLOAD_PRESET=eggstra \
   //   --dart-define=CLOUDINARY_UNSIGNED=true
-  static const String _cloudName = String.fromEnvironment('CLOUDINARY_CLOUD_NAME', defaultValue: '');
-  static const String _apiKey = String.fromEnvironment('CLOUDINARY_API_KEY', defaultValue: '');
-  static const String _apiSecret = String.fromEnvironment('CLOUDINARY_API_SECRET', defaultValue: '');
+  static const String _cloudName = String.fromEnvironment('CLOUDINARY_CLOUD_NAME', defaultValue: 'drczdu4oh');
+  static const String _apiKey = String.fromEnvironment('CLOUDINARY_API_KEY', defaultValue: '757639348227263');
+  static const String _apiSecret = String.fromEnvironment('CLOUDINARY_API_SECRET', defaultValue: '3-GiSSxN8GnpT39L_rlDqOVi3qY');
   static const String _uploadPreset = String.fromEnvironment('CLOUDINARY_UPLOAD_PRESET', defaultValue: 'eggstra');
   static const String _unsignedFlag = String.fromEnvironment('CLOUDINARY_UNSIGNED', defaultValue: 'true');
   static bool get _isUnsigned => _unsignedFlag.toLowerCase() == 'true' || _apiSecret.isEmpty;

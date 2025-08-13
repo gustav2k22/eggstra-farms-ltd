@@ -89,10 +89,12 @@ class _LoginScreenState extends State<LoginScreen>
           final userRole = authProvider.user!.role;
           
           // Navigate based on the current user's role
-          if (userRole == 'admin') {
-            context.go('/admin');
-          } else {
-            context.go('/home');
+          if (mounted) {
+            if (userRole == 'admin') {
+              context.go('/admin');
+            } else {
+              context.go('/home');
+            }
           }
           return;
         }

@@ -456,7 +456,7 @@ class _ProductListingScreenState extends State<ProductListingScreen>
                   productId: product.id,
                   name: product.name,
                   price: product.price,
-                  imageUrl: product.imageUrl,
+                  imageUrl: product.imageUrls.isNotEmpty ? product.imageUrls.first : null,
                   category: product.category,
                   rating: product.rating,
                   isOrganic: product.isOrganic,

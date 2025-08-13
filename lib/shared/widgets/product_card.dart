@@ -261,7 +261,7 @@ class _ProductCardState extends State<ProductCard> {
           ),
         );
       }
-    };
+    }
     
     void showErrorSnackBar() {
       if (mounted) {
@@ -272,7 +272,7 @@ class _ProductCardState extends State<ProductCard> {
           ),
         );
       }
-    };
+    }
     
     // Create a temporary product model for adding to cart
     final product = ProductModel(

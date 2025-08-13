@@ -98,31 +98,7 @@ class ImageService {
     String? customPath,
   }) async {
     try {
-      // First try Firebase Storage
-      final firebaseResult = await _uploadToFirebase(
-        imageFile: imageFile,
-        imageType: imageType,
-        userId: userId,
-        productId: productId,
-        customPath: customPath,
-      );
-
-      if (firebaseResult.success) {
-        // Log successful Firebase upload
-        await _firebaseService.logEvent(
-          name: 'image_uploaded_firebase',
-          parameters: {
-            'image_type': imageType.name,
-            'user_id': userId,
-            'file_size': await imageFile.length(),
-          },
-        );
-        
-        return firebaseResult;
-      }
-
-      // Fallback to Cloudinary
-      debugPrint('Firebase upload failed, falling back to Cloudinary');
+      // First try Cloudinary for better reliability and performance
       final cloudinaryResult = await _uploadToCloudinary(
         imageFile: imageFile,
         imageType: imageType,
@@ -138,10 +114,34 @@ class ImageService {
           parameters: {
             'image_type': imageType.name,
             'user_id': userId,
-            'fallback_reason': 'firebase_failed',
+            'file_size': await imageFile.length(),
           },
         );
+        
         return cloudinaryResult;
+      }
+
+      // Fallback to Firebase Storage
+      debugPrint('Cloudinary upload failed, falling back to Firebase Storage');
+      final firebaseResult = await _uploadToFirebase(
+        imageFile: imageFile,
+        imageType: imageType,
+        userId: userId,
+        productId: productId,
+        customPath: customPath,
+      );
+
+      if (firebaseResult.success) {
+        // Log successful Firebase upload
+        await _firebaseService.logEvent(
+          name: 'image_uploaded_firebase',
+          parameters: {
+            'image_type': imageType.name,
+            'user_id': userId,
+            'fallback_reason': 'cloudinary_failed',
+          },
+        );
+        return firebaseResult;
       }
 
       // Final fallback to local storage
@@ -428,9 +428,21 @@ class ImageService {
     String? customPath,
   }) async {
     try {
-      final file = File(imageFile.path);
       final folder = _getCloudinaryFolder(imageType);
       final publicId = customPath ?? '${userId}_${DateTime.now().millisecondsSinceEpoch}';
+      
+      File file;
+      if (kIsWeb) {
+        // For web, create a temporary file from bytes
+        final bytes = await imageFile.readAsBytes();
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File('${tempDir.path}/temp_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        await tempFile.writeAsBytes(bytes);
+        file = tempFile;
+      } else {
+        // For mobile, use the file path directly
+        file = File(imageFile.path);
+      }
       
       final cloudinaryUrl = await _cloudinaryService.uploadImage(
         imageFile: file,
@@ -438,9 +450,20 @@ class ImageService {
         publicId: publicId,
       );
       
+      // Clean up temporary file if created for web
+      if (kIsWeb && await file.exists()) {
+        try {
+          await file.delete();
+        } catch (e) {
+          debugPrint('Failed to delete temp file: $e');
+        }
+      }
+      
       if (cloudinaryUrl != null) {
         // Cache the Cloudinary URL
         await _cacheImageUrl(imageType, cloudinaryUrl);
+        
+        debugPrint('Successfully uploaded to Cloudinary: $cloudinaryUrl');
         
         return ImageUploadResult(
           success: true,
@@ -450,7 +473,7 @@ class ImageService {
       } else {
         return ImageUploadResult(
           success: false,
-          error: 'Cloudinary upload failed',
+          error: 'Cloudinary upload failed - no URL returned',
         );
       }
     } catch (e) {

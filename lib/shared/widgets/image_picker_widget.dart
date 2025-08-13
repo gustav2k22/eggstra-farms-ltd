@@ -17,7 +17,7 @@ class ImagePickerWidget extends StatefulWidget {
   final String title;
 
   const ImagePickerWidget({
-    Key? key,
+    super.key,
     required this.imageType,
     required this.userId,
     required this.onImageSelected,
@@ -27,7 +27,7 @@ class ImagePickerWidget extends StatefulWidget {
     this.size = 120.0,
     this.icon = Icons.add_photo_alternate,
     this.title = 'Add Image',
-  }) : super(key: key);
+  });
 
   @override
   State<ImagePickerWidget> createState() => _ImagePickerWidgetState();
@@ -134,7 +134,7 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
         ),
         child: Icon(icon, color: color, size: 28),
       ),
@@ -256,7 +256,7 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.9),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(8),
                   ),
@@ -274,14 +274,14 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
           Icon(
             widget.icon,
             size: widget.size / 3,
-            color: AppColors.textSecondary.withOpacity(0.7),
+            color: AppColors.textSecondary.withValues(alpha: 0.7),
           ),
           const SizedBox(height: 8),
           Text(
             widget.title,
             style: TextStyle(
               fontSize: 12,
-              color: AppColors.textSecondary.withOpacity(0.7),
+              color: AppColors.textSecondary.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -324,7 +324,7 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
             'Local File\n(Not visible on web)',
             style: TextStyle(
               fontSize: 10,
-              color: AppColors.textSecondary.withOpacity(0.5),
+              color: AppColors.textSecondary.withValues(alpha: 0.8),
             ),
             textAlign: TextAlign.center,
           ),
