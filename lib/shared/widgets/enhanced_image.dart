@@ -36,11 +36,11 @@ class EnhancedImage extends StatelessWidget {
     if (imageUrl == null || imageUrl!.isEmpty) {
       imageWidget = _buildPlaceholder();
     } else if (imageUrl!.startsWith('http')) {
-      // Network image (Firebase Storage URL)
+      // Network image (Cloudinary or Firebase Storage URL)
       imageWidget = _buildNetworkImage();
     } else if (imageUrl!.startsWith('file://') || imageUrl!.startsWith('/')) {
-      // Local file image
-      imageWidget = _buildLocalImage();
+      // Local file image - but fallback to placeholder if file doesn't exist
+      imageWidget = _buildLocalImageWithFallback();
     } else {
       // Asset image or unknown format
       imageWidget = _buildAssetOrPlaceholder();
@@ -76,13 +76,16 @@ class EnhancedImage extends StatelessWidget {
       height: height,
       fit: fit,
       placeholder: (context, url) => _buildLoadingPlaceholder(),
-      errorWidget: (context, url, error) => _buildErrorWidget(),
+      errorWidget: (context, url, error) {
+        debugPrint('Error loading network image: $url, Error: $error');
+        return _buildErrorWidget();
+      },
       fadeInDuration: const Duration(milliseconds: 300),
       fadeOutDuration: const Duration(milliseconds: 100),
     );
   }
 
-  Widget _buildLocalImage() {
+  Widget _buildLocalImageWithFallback() {
     final filePath = imageUrl!.startsWith('file://') 
         ? imageUrl!.substring(7) 
         : imageUrl!;
@@ -102,10 +105,14 @@ class EnhancedImage extends StatelessWidget {
             width: width,
             height: height,
             fit: fit,
-            errorBuilder: (context, error, stackTrace) => _buildErrorWidget(),
+            errorBuilder: (context, error, stackTrace) {
+              debugPrint('Error loading local image: $filePath, Error: $error');
+              return _buildPlaceholder(); // Fallback to placeholder instead of error
+            },
           );
         } else {
-          return _buildErrorWidget();
+          debugPrint('Local image file does not exist: $filePath');
+          return _buildPlaceholder(); // Fallback to placeholder for missing files
         }
       },
     );

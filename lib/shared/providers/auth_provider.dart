@@ -240,7 +240,13 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> signOut() async {
     try {
       _setLoading(true);
+      
+      // Clear user data first to prevent stale data issues
+      await _clearUserData();
+      
+      // Then sign out from Firebase
       await _firebaseService.signOut();
+      
       return true;
     } catch (e) {
       _setError('Failed to sign out. Please try again.');

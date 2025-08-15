@@ -4,11 +4,14 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../shared/providers/auth_provider.dart';
+import '../../shared/providers/product_provider.dart';
+import '../../shared/models/product_model.dart';
 
 import '../../shared/widgets/custom_app_bar.dart';
 import '../../shared/widgets/product_card.dart';
 import '../../shared/widgets/category_chip.dart';
 import '../../shared/widgets/search_bar_widget.dart';
+import '../../shared/widgets/enhanced_image.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,6 +40,12 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: _categories.length, vsync: this);
+    // Ensure products are loaded from Firebase when HomeScreen starts
+    // This wires up the product streams in ProductProvider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final productProvider = Provider.of<ProductProvider>(context, listen: false);
+      productProvider.initializeProducts();
+    });
   }
 
   @override
@@ -58,33 +67,26 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  // Get filtered products based on search query and category
-  List<Map<String, dynamic>> _getFilteredProducts() {
-    List<Map<String, dynamic>> allProducts = List.generate(10, (index) => {
-      'id': 'product_$index',
-      'name': _getProductName(index),
-      'price': _getProductPrice(index),
-      'imageUrl': _getProductImage(index),
-      'category': _getProductCategory(index),
-      'rating': 4.5 + (index % 5) * 0.1,
-      'isOrganic': index % 3 == 0,
-    });
+  // Get filtered products from Firebase based on search query and category
+  List<ProductModel> _getFilteredProducts(List<ProductModel> products) {
+    List<ProductModel> filteredProducts = List.from(products);
 
     // Filter by category if not 'All'
     if (_selectedCategory != 'All') {
-      allProducts = allProducts.where((product) =>
-        product['category'] == _selectedCategory
+      filteredProducts = filteredProducts.where((product) =>
+        product.category == _selectedCategory
       ).toList();
     }
     
     // Filter by search query if not empty
     if (_searchQuery.isNotEmpty) {
-      allProducts = allProducts.where((product) =>
-        product['name'].toLowerCase().contains(_searchQuery.toLowerCase())
+      filteredProducts = filteredProducts.where((product) =>
+        product.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+        product.description.toLowerCase().contains(_searchQuery.toLowerCase())
       ).toList();
     }
     
-    return allProducts;
+    return filteredProducts;
   }
 
   @override
@@ -98,14 +100,16 @@ class _HomeScreenState extends State<HomeScreen>
           context.go('/cart');
         },
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          // TODO: Implement refresh functionality
-          await Future.delayed(const Duration(seconds: 1));
-        },
-        child: CustomScrollView(
-          controller: _scrollController,
-          slivers: [
+      body: Consumer<ProductProvider>(
+        builder: (context, productProvider, child) {
+          return RefreshIndicator(
+            onRefresh: () async {
+              // Refresh products by triggering a rebuild
+              setState(() {});
+            },
+            child: CustomScrollView(
+              controller: _scrollController,
+              slivers: [
             // Welcome Section
             SliverToBoxAdapter(
               child: _buildWelcomeSection(),
@@ -172,39 +176,41 @@ class _HomeScreenState extends State<HomeScreen>
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     // Get products filtered by search query and category
-                    final filteredProducts = _getFilteredProducts();
+                    final filteredProducts = _getFilteredProducts(productProvider.products);
                     if (index >= filteredProducts.length) return null;
                     
                     final product = filteredProducts[index];
                     
                     return ProductCard(
-                      productId: product['id'],
-                      name: product['name'],
-                      price: product['price'],
-                      imageUrl: product['imageUrl'],
-                      category: product['category'],
-                      rating: product['rating'],
-                      isOrganic: product['isOrganic'],
+                      productId: product.id,
+                      name: product.name,
+                      price: product.price,
+                      imageUrl: product.imageUrls.isNotEmpty ? product.imageUrls.first : '',
+                      category: product.category,
+                      rating: product.rating,
+                      isOrganic: product.isOrganic,
                       onTap: () {
                         // Use GoRouter instead of Navigator for consistent navigation
                         context.push(
                           '/product-details',
-                          extra: product['id'],
+                          extra: product.id,
                         );
                       },
                     );
                   },
-                  childCount: _getFilteredProducts().length, // Dynamic count based on filters
+                  childCount: _getFilteredProducts(productProvider.products).length, // Dynamic count based on filters
                 ),
               ),
             ),
             
             // Bottom Spacing
             const SliverToBoxAdapter(
-              child: SizedBox(height: 100),
+              child: SizedBox(height: 150),
             ),
           ],
-        ),
+            )
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -228,6 +234,11 @@ class _HomeScreenState extends State<HomeScreen>
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
         final user = authProvider.user;
+        final String? initials = (user != null && user.firstName.isNotEmpty)
+            ? (user.lastName.isNotEmpty
+                ? '${user.firstName[0]}${user.lastName[0]}'
+                : user.firstName[0])
+            : null;
         return Container(
           margin: const EdgeInsets.all(16.0),
           padding: const EdgeInsets.all(20.0),
@@ -278,18 +289,11 @@ class _HomeScreenState extends State<HomeScreen>
                       ],
                     ),
                   ),
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 51),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: const Icon(
-                      Icons.agriculture,
-                      color: Colors.white,
-                      size: 30,
-                    ),
+                  ProfileImage(
+                    imageUrl: user?.profileImageUrl,
+                    size: 60,
+                    showEditIcon: false,
+                    initials: initials,
                   ),
                 ],
               ),
@@ -446,34 +450,5 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // TODO: Replace these with actual data from ProductService
-  String _getProductName(int index) {
-    final names = [
-      'Fresh Farm Eggs',
-      'Organic Chicken',
-      'Free Range Eggs',
-      'Fresh Milk',
-      'Organic Vegetables',
-      'Farm Chicken',
-      'Brown Eggs',
-      'Fresh Cheese',
-      'Organic Fruits',
-      'Farm Fresh Meat',
-    ];
-    return names[index % names.length];
-  }
-
-  double _getProductPrice(int index) {
-    final prices = [15.0, 45.0, 18.0, 12.0, 25.0, 50.0, 20.0, 30.0, 35.0, 60.0];
-    return prices[index % prices.length];
-  }
-
-  String _getProductImage(int index) {
-    // TODO: Replace with actual product images
-    return 'assets/images/products/product_${(index % 5) + 1}.jpg';
-  }
-
-  String _getProductCategory(int index) {
-    final categories = ['Eggs', 'Poultry', 'Dairy', 'Vegetables', 'Fruits'];
-    return categories[index % categories.length];
-  }
+  // Removed unused mock data methods - now using Firebase data
 }

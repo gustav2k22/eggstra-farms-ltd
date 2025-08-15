@@ -6,6 +6,7 @@ import 'core/themes/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'shared/providers/auth_provider.dart';
 import 'shared/providers/cart_provider.dart';
+import 'shared/providers/product_provider.dart';
 import 'routes/app_router.dart';
 
 void main() async {
@@ -95,6 +96,7 @@ class EggstraFarmsApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProxyProvider<AuthProvider, CartProvider>(
           create: (context) =>
               CartProvider(Provider.of<AuthProvider>(context, listen: false)),

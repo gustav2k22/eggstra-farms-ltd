@@ -34,7 +34,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
   };
 
   final List<StreamSubscription> _subscriptions = [];
-  bool _isLoading = false;
+  // Removed unused _isLoading field
   List<ActivityModel> _recentActivities = [];
 
   @override
@@ -92,7 +92,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
 
   Future<void> _loadDashboardData() async {
     setState(() {
-      _isLoading = true;
+      // Loading state removed - using stream-based loading
     });
 
     try {
@@ -178,11 +178,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
       _subscriptions.add(newUsersSubscription);
 
       setState(() {
-        _isLoading = false;
+        // Loading state removed - using stream-based loading
       });
     } catch (e) {
       setState(() {
-        _isLoading = false;
+        // Loading state removed - using stream-based loading
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

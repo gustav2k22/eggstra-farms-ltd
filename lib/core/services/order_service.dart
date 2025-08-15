@@ -88,13 +88,20 @@ class OrderService {
   Stream<List<OrderModel>> getUserOrders(String userId) {
     return _firebaseService.firestore
         .collection('orders')
-        .where('userId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
+      final allOrders = snapshot.docs
           .map((doc) => OrderModel.fromFirestore(doc))
           .toList();
+      
+      // Filter user orders client-side to avoid composite index requirement
+      return allOrders
+          .where((order) => order.userId == userId)
+          .toList();
+    }).handleError((error) {
+      debugPrint('Error loading user orders: $error');
+      return <OrderModel>[];
     });
   }
 
@@ -115,13 +122,20 @@ class OrderService {
   Stream<List<OrderModel>> getOrdersByStatus(String status) {
     return _firebaseService.firestore
         .collection('orders')
-        .where('status', isEqualTo: status)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
+      final allOrders = snapshot.docs
           .map((doc) => OrderModel.fromFirestore(doc))
           .toList();
+      
+      // Filter by status client-side to avoid composite index requirement
+      return allOrders
+          .where((order) => order.status == status)
+          .toList();
+    }).handleError((error) {
+      debugPrint('Error loading orders by status: $error');
+      return <OrderModel>[];
     });
   }
 

@@ -129,9 +129,10 @@ class _ProductCardState extends State<ProductCard> {
             Expanded(
               flex: 2,
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Category
                     Text(
@@ -147,7 +148,7 @@ class _ProductCardState extends State<ProductCard> {
                     const SizedBox(height: 4),
                     
                     // Product Name
-                    Expanded(
+                    Flexible(
                       child: Text(
                         widget.name,
                         style: const TextStyle(

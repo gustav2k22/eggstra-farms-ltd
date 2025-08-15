@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as path;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'firebase_service.dart';
+import 'cloudinary_service.dart';
 
 enum ImageType {
   product,
@@ -21,6 +22,7 @@ class ImageUploadResult {
   final String? localPath;
   final String? error;
   final bool isLocal;
+  final bool isCloudinary;
 
   ImageUploadResult({
     required this.success,
@@ -28,6 +30,7 @@ class ImageUploadResult {
     this.localPath,
     this.error,
     this.isLocal = false,
+    this.isCloudinary = false,
   });
 
   String? get displayUrl => imageUrl ?? localPath;
@@ -39,6 +42,7 @@ class ImageService {
   ImageService._internal();
 
   final FirebaseService _firebaseService = FirebaseService.instance;
+  final CloudinaryService _cloudinaryService = CloudinaryService();
   final ImagePicker _imagePicker = ImagePicker();
 
   // Pick image from gallery or camera
@@ -94,7 +98,31 @@ class ImageService {
     String? customPath,
   }) async {
     try {
-      // First try Firebase Storage
+      // First try Cloudinary for better reliability and performance
+      final cloudinaryResult = await _uploadToCloudinary(
+        imageFile: imageFile,
+        imageType: imageType,
+        userId: userId,
+        productId: productId,
+        customPath: customPath,
+      );
+
+      if (cloudinaryResult.success) {
+        // Log successful Cloudinary upload
+        await _firebaseService.logEvent(
+          name: 'image_uploaded_cloudinary',
+          parameters: {
+            'image_type': imageType.name,
+            'user_id': userId,
+            'file_size': await imageFile.length(),
+          },
+        );
+        
+        return cloudinaryResult;
+      }
+
+      // Fallback to Firebase Storage
+      debugPrint('Cloudinary upload failed, falling back to Firebase Storage');
       final firebaseResult = await _uploadToFirebase(
         imageFile: imageFile,
         imageType: imageType,
@@ -110,15 +138,14 @@ class ImageService {
           parameters: {
             'image_type': imageType.name,
             'user_id': userId,
-            'file_size': await imageFile.length(),
+            'fallback_reason': 'cloudinary_failed',
           },
         );
-        
         return firebaseResult;
       }
 
-      // Fallback to local storage
-      debugPrint('Firebase upload failed, falling back to local storage');
+      // Final fallback to local storage
+      debugPrint('Cloudinary upload failed, falling back to local storage');
       final localResult = await _saveToLocalStorage(
         imageFile: imageFile,
         imageType: imageType,
@@ -134,7 +161,7 @@ class ImageService {
           parameters: {
             'image_type': imageType.name,
             'user_id': userId,
-            'fallback_reason': 'firebase_failed',
+            'fallback_reason': 'firebase_and_cloudinary_failed',
           },
         );
       }
@@ -389,6 +416,85 @@ class ImageService {
         success: false,
         error: 'Local storage failed: $e',
       );
+    }
+  }
+
+  // Upload to Cloudinary as fallback
+  Future<ImageUploadResult> _uploadToCloudinary({
+    required XFile imageFile,
+    required ImageType imageType,
+    required String userId,
+    String? productId,
+    String? customPath,
+  }) async {
+    try {
+      final folder = _getCloudinaryFolder(imageType);
+      final publicId = customPath ?? '${userId}_${DateTime.now().millisecondsSinceEpoch}';
+      
+      File file;
+      if (kIsWeb) {
+        // For web, create a temporary file from bytes
+        final bytes = await imageFile.readAsBytes();
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File('${tempDir.path}/temp_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        await tempFile.writeAsBytes(bytes);
+        file = tempFile;
+      } else {
+        // For mobile, use the file path directly
+        file = File(imageFile.path);
+      }
+      
+      final cloudinaryUrl = await _cloudinaryService.uploadImage(
+        imageFile: file,
+        folder: folder,
+        publicId: publicId,
+      );
+      
+      // Clean up temporary file if created for web
+      if (kIsWeb && await file.exists()) {
+        try {
+          await file.delete();
+        } catch (e) {
+          debugPrint('Failed to delete temp file: $e');
+        }
+      }
+      
+      if (cloudinaryUrl != null) {
+        // Cache the Cloudinary URL
+        await _cacheImageUrl(imageType, cloudinaryUrl);
+        
+        debugPrint('Successfully uploaded to Cloudinary: $cloudinaryUrl');
+        
+        return ImageUploadResult(
+          success: true,
+          imageUrl: cloudinaryUrl,
+          isCloudinary: true,
+        );
+      } else {
+        return ImageUploadResult(
+          success: false,
+          error: 'Cloudinary upload failed - no URL returned',
+        );
+      }
+    } catch (e) {
+      debugPrint('Cloudinary upload error: $e');
+      return ImageUploadResult(
+        success: false,
+        error: 'Cloudinary upload failed: $e',
+      );
+    }
+  }
+
+  String _getCloudinaryFolder(ImageType imageType) {
+    switch (imageType) {
+      case ImageType.product:
+        return 'eggstra/products';
+      case ImageType.profile:
+        return 'eggstra/profiles';
+      case ImageType.category:
+        return 'eggstra/categories';
+      case ImageType.banner:
+        return 'eggstra/banners';
     }
   }
 
