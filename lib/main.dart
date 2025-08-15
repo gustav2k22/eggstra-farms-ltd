@@ -13,15 +13,15 @@ void main() async {
   // Catch any errors during app initialization
   try {
     WidgetsFlutterBinding.ensureInitialized();
-    
+
     // Print debug info
     debugPrint('🔍 App initialization started');
-    
+
     // Initialize Firebase
     debugPrint('🔍 Initializing Firebase...');
     await FirebaseService.initialize();
     debugPrint('✅ Firebase initialized successfully');
-    
+
     // Set system UI overlay style
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
@@ -31,58 +31,60 @@ void main() async {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
-    
+
     // Set preferred orientations
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
-    
+
     debugPrint('🚀 Starting EggstraFarmsApp...');
     runApp(const EggstraFarmsApp());
   } catch (e, stackTrace) {
     // Print error information for debugging
     debugPrint('❌ ERROR DURING APP INITIALIZATION: $e');
     debugPrint('📋 STACK TRACE: $stackTrace');
-    
+
     // Show a minimal error app instead of crashing completely
-    runApp(MaterialApp(
-      home: Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                const SizedBox(height: 16),
-                const Text(
-                  'Something went wrong during initialization',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  e.toString(),
-                  style: const TextStyle(color: Colors.red),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    // Attempt to restart the app
-                    main();
-                  },
-                  child: const Text('Retry'),
-                ),
-              ],
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Something went wrong during initialization',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    e.toString(),
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      // Attempt to restart the app
+                      main();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
+        debugShowCheckedModeBanner: false,
       ),
-      debugShowCheckedModeBanner: false,
-    ));
+    );
   }
 }
 
@@ -96,9 +98,8 @@ class EggstraFarmsApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProxyProvider<AuthProvider, CartProvider>(
-          create: (context) => CartProvider(
-            Provider.of<AuthProvider>(context, listen: false),
-          ),
+          create: (context) =>
+              CartProvider(Provider.of<AuthProvider>(context, listen: false)),
           update: (context, auth, cart) => cart ?? CartProvider(auth),
         ),
       ],
@@ -117,5 +118,3 @@ class EggstraFarmsApp extends StatelessWidget {
     );
   }
 }
-
-

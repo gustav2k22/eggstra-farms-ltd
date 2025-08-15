@@ -32,6 +32,10 @@
 
 ## 📱 Overview
 
+
+### Customer Features
+
+=======
 Eggstra Farms Ltd is a comprehensive Flutter e-commerce mobile application designed for premium agricultural products. The app delivers a seamless shopping experience for customers while providing powerful administrative tools for farm management. Built with Firebase backend integration and modern Flutter architecture, it supports real-time data synchronization, secure authentication, and robust image management through Cloudinary integration.
 
 ## 📊 App Report (Current Implementation Status)
@@ -338,6 +342,7 @@ class CloudinaryService {
 ## 👥 User Roles & Permissions
 
 ### **Customer Role**
+
 - Browse and search products
 - Manage shopping cart
 - Place and track orders
@@ -345,6 +350,85 @@ class CloudinaryService {
 - Update profile information
 - View order history
 
+
+### Admin Features
+
+- Dashboard with sales analytics and metrics
+- Manage users (view, edit, activate/deactivate)
+- Add, edit, and remove products
+- Process and update orders
+- View reports and business insights
+
+## 💻 Technical Information (For Developers)
+
+### Technology Stack
+
+- **Flutter SDK**: v3.16.0
+- **Dart**: v3.2.0
+- **Firebase**: Authentication, Firestore, Storage, Analytics, Crashlytics
+
+### Key Dependencies
+
+- **Provider & Riverpod**: State management
+- **GoRouter**: Navigation and routing
+- **HTTP/Dio**: API communication
+- **Hive & SharedPreferences**: Local storage
+- **Firebase packages**: Backend integration
+- **CachedNetworkImage**: Image handling
+- **Lottie**: Animation effects
+
+### Architecture
+
+The app follows a service-oriented architecture with clear separation of concerns:
+
+- **UI Layer**: Flutter widgets for user interface
+- **State Layer**: Providers for state management
+- **Service Layer**: Business logic and Firebase integration
+- **Model Layer**: Data structures and entities
+
+## 🧪 Testing
+
+### Sample Accounts
+
+- **Customer**: <test@mail.com> / password123
+- **Admin**: <admin@admin.com> / admin123
+
+### Sample Products
+
+The app includes sample products across multiple categories with realistic data, including:
+
+- Free-range organic eggs
+- Fresh vegetables and fruits
+- Dairy products
+- Organic honey and preserves
+- Farm-fresh meat
+
+## 🤝 Contributing Guidelines (For Non-Developers)
+
+Even if you're not a programmer, you can contribute to the project in several ways:
+
+- **Content Creation**: Help write product descriptions or marketing materials
+- **UI/UX Feedback**: Suggest improvements to the user experience
+- **Testing**: Try the app and report any issues or bugs you find
+- **Documentation**: Help improve these instructions or create user guides
+
+To suggest changes:
+
+1. Note the specific screen or feature you're referring to
+2. Describe clearly what you think should be changed
+3. If possible, include a screenshot highlighting the area
+4. Submit your feedback through our project management system
+
+## 📞 Contact Information
+
+- **Development Team**:
+
+1. Suleiman Ahmed Ibn Ahmed <http://github.com/gustav2k19>
+2. Amos kwame asante <https://github.com/AMOSKWAMEASANTE/AMOSKWAMEASANTE.git>
+3. Asante-Amoah Emmanuel Kofi <https://github.com/Kofi-Jr7/Kofi-Jr7.git>
+4. Abdul Rahim Salawudeen <https://github.com/Spacely-12>
+
+=======
 ### **Admin Role**
 - Access admin dashboard
 - Manage all users
@@ -468,6 +552,7 @@ When reporting bugs, include:
 ---
 
 ## 📄 License & Copyright
+
 
 © 2025 Eggstra Farms Ltd. All rights reserved.
 
